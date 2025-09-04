@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('admin/', admin.site.urls), # - Маршрут 'admin/' обрабатывается встроенным админ-интерфейсом Django.
     path('', include('first_app.urls')),  # Подключение маршрутов приложения
+
 ]

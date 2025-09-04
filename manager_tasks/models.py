@@ -6,10 +6,16 @@ from django.db import models
 name: Название категории.
 """
 class Category(models.Model):
-    name = models.CharField(max_length=30, unique=True, verbose_name="Название категории",
-                            help_text="Категория выполнения")
+    name = models.CharField(max_length=30, verbose_name="Название категории:",
+                            help_text="Категория выполнения (срочность)")
     def __str__(self):
         return self.name
+
+    class Meta:
+        db_table = 'task_manager_category'
+        verbose_name = 'Category'
+        unique_together = [['name']]
+
 
 """Task
 title: Название задачи. Уникально для даты. 
@@ -37,6 +43,12 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        db_table = 'task_manager_task'  #  # Задаем имя таблицы в базе данных
+        ordering = ['-created_at'] # Сортировка по убыванию даты создания
+        verbose_name = 'Task' # Человекочитаемое имя модели: 'Task'
+        unique_together = [['title']] # Уникальность по полю 'title' или комбинация полей
 
 """Модель SubTask:
 Описание: Отдельная часть основной задачи (Task).
