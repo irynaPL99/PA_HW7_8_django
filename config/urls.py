@@ -20,6 +20,8 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls), # - Маршрут 'admin/' обрабатывается встроенным админ-интерфейсом Django.
-    path('', include('first_app.urls')),  # Подключение маршрутов приложения
+    path('', include('first_app.urls')),  # Подключение маршрутов приложения "first_app"
+    path('api/v1/', include('manager_tasks.urls')),  # подключаем наше приложение "manager_tasks"
+
 
 ]
