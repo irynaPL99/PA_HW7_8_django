@@ -4,6 +4,7 @@ from .views import create_task, get_all_tasks, get_task_detail, get_task_statist
 from .views import get_all_categories, create_category, update_category
 #from .views import create_subtask # hw12
 from .views import SubTaskListCreateView, SubTaskDetailUpdateDeleteView # hw13
+from .views import get_subtasks_by_task_and_status #hw14
 
 urlpatterns = [
     path('tasks/create/', create_task, name='create_task'),
@@ -17,6 +18,7 @@ urlpatterns = [
     # *.as_view() - преобразует класс представления в функцию
     # представления, которая может быть использована в маршруте
     path('subtasks/<int:pk>/', SubTaskDetailUpdateDeleteView.as_view(), name='detail_update_delete_subtask'),
+    path('subtasks/filter/', get_subtasks_by_task_and_status, name='filter_by_task_and_status'), #14
 
 
     # categories:

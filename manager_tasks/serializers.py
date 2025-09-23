@@ -29,9 +29,12 @@ class TaskCreateSerializer(ModelSerializer):
         return value
 
 class SubTaskSerializer(ModelSerializer):
+    task_title = serializers.CharField(source='task.title', read_only=True) # название главной(связанной) задачи
+
     class Meta:
         model = SubTask
-        fields = '__all__'
+        #fields = '__all__'
+        fields = ['id', 'task_title', 'title', 'status', 'created_at']  # Включаем id и task.title
 
 """hw12 Создайте !!два!! новых эндпоинта для:
 + Получения списка задач
