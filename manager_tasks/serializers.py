@@ -1,8 +1,11 @@
+import logging
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework.serializers import ModelSerializer, StringRelatedField
 from rest_framework import serializers
 from .models import Task, Category, SubTask
+
+logger = logging.getLogger(__name__)
 
 """hw12 Создайте эндпоинт для создания новой задачи. 
 Задача должна быть создана с полями title, description, status, и deadline.
@@ -22,11 +25,42 @@ class TaskCreateSerializer(ModelSerializer):
         model = Task
         #fields = '__all__'
         fields = ['title', 'description', 'status', 'deadline']
+        read_only_fields = ['created_at']   #hw15 (add update Task als Generic View)
 
-    def validate_deadline(self, value):
-        if value < timezone.now():
-            raise ValidationError("Deadline cannot be in the past.")
-        return value
+    def validate(self, data):
+        logger.debug(f"Validating data: {data}")
+        # Проверяем уникальность title для текущей даты
+        existing_tasks = Task.objects.filter(
+            title=data['title'],
+            created_at__date=timezone.now().date()
+        ).exclude(id=self.instance.id if self.instance else None)
+
+        if existing_tasks.exists():
+            raise ValidationError(
+                f"Задача с названием '{data['title']}' уже существует для текущей даты."
+            )
+        return super().validate(data)
+
+    def is_valid(self, raise_exception=False):
+        # Убедимся, что вызываем базовый метод с правильными аргументами
+        try:
+            is_valid = super().is_valid(raise_exception=raise_exception)
+            logger.debug(f"Validation result: {self.errors if not is_valid else 'Valid'}")
+            return is_valid
+        except Exception as e:
+            logger.error(f"Validation failed with exception: {e}")
+            raise
+
+    # явно удаляет "created_at" из validated_data, если оно случайно попало туда
+    def update(self, instance, validated_data):
+        logger.debug(f"Updating instance with validated data: {validated_data}")
+        # Исключаем "created_at" из обновления, так как оно read_only
+        validated_data.pop('created_at', None)
+        return super().update(instance, validated_data)
+
+
+
+
 
 class SubTaskSerializer(ModelSerializer):
     task_title = serializers.CharField(source='task.title', read_only=True) # название главной(связанной) задачи
@@ -83,36 +117,6 @@ class SubTaskCreateSerializer(ModelSerializer):
         # не будет приниматься из данных запроса (например, из JSON в POST  или PUT -запросе)
         # будет автоматически установлено при сохранении объекта благодаря auto_now_add=True
 
-"""hw13 def create, def update"""
-"""
-class CategoryCreateSerializer(ModelSerializer):
-    class Meta:
-        model = Category
-        fields = '__all__'
-
-    def validate(self, data):
-        name = data.get('name')
-        if name is None:
-            raise ValidationError({"name": "This field is required."})
-
-        # Проверяем уникальность
-        if self.instance is not None:
-            if name == self.instance.name:
-                return data
-            queryset = Category.objects.exclude(pk=self.instance.pk)
-        else:
-            queryset = Category.objects.all()
-
-        if queryset.filter(name=name).exists():
-            raise ValidationError({"name": f"Category with name '{name}' already exists."})
-        return data
-
-    def create(self, validated_data):
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        return super().update(instance, validated_data)
-"""
 class CategoryCreateSerializer(ModelSerializer):
     class Meta:
         model = Category

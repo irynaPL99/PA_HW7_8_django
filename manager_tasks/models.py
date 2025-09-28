@@ -1,4 +1,6 @@
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 """Модель Category:
 Описание: Категория выполнения.
@@ -33,8 +35,10 @@ class Task(models.Model):
         ('BLOCKED', 'Blocked'),
         ('DONE', 'Done'),
     ]
-
-    title = models.CharField(max_length=100, unique_for_date='created_at')
+    # 28-09-2025 убран "unique_for_date='created_at'",
+    # не проходила валидация при изменении задания. Перенесено в серилиалайзер
+    #title = models.CharField(max_length=100, unique_for_date='created_at')
+    title = models.CharField(max_length=100)
     description = models.TextField(blank=True) #blank=True-может быть не указано
     categories = models.ManyToManyField(Category, related_name='tasks', blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NEW')
@@ -44,11 +48,29 @@ class Task(models.Model):
     def __str__(self):
         return self.title
 
+    # 28-09-2025проверка на уникальность поля в пределах даты.
+    # только при прямом сохранении через Django(admin)
+    def clean(self):
+        if not self.created_at:  # Если объект ещё не сохранён
+            created_at_date = timezone.now().date()
+        else:
+            created_at_date = self.created_at.date()
+        existing_tasks = Task.objects.filter(
+            title=self.title,
+            created_at__date=created_at_date
+        ).exclude(id=self.id)
+
+        if existing_tasks.exists():
+            raise ValidationError(
+                f"Задача с названием '{self.title}' уже существует для текущей даты."
+            )
+
     class Meta:
         db_table = 'task_manager_task'  #  # Задаем имя таблицы в базе данных
         ordering = ['-created_at'] # Сортировка по убыванию даты создания
         verbose_name = 'Task' # Человекочитаемое имя модели: 'Task'
-        unique_together = [['title']] # Уникальность по полю 'title' или комбинация полей
+        #unique_together = [['title']] # Уникальность по полю 'title' или комбинация полей
+        # не используем здесь, так как валидация вынесена в сериалайзер
 
 """Модель SubTask:
 Описание: Отдельная часть основной задачи (Task).
