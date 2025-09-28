@@ -169,6 +169,7 @@ class SubTaskListCreateView(ListCreateAPIView):
     """
     queryset = SubTask.objects.all().order_by('-created_at')
     serializer_class = SubTaskSerializer  # all SubTasks
+    #pagination_class = CustomCursorPagination  # Замена на глобальный класс пагинации(hw17)
     pagination_class = PageNumberPagination
     pagination_class.page_size = 5  # 5 объектов на страницу (hw14)
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter] #hw15

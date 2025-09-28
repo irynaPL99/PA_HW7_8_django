@@ -10,12 +10,16 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os   #hw17 LOGS_DIR
 from pathlib import Path
 from environ import Env
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+#28-09-2025 hw17 logging
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -53,6 +57,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'config.middleware.RequestLoggingMiddleware', #hw17 Перехватывает каждый HTTP-запрос
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -140,50 +145,87 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+#28-09-2025 hw17 pagination
+REST_FRAMEWORK = {
+    # Указывает кастомный класс пагинации для всех ViewSet и APIView, где пагинация не переопределена
+    'DEFAULT_PAGINATION_CLASS': 'manager_tasks.pagination.CustomCursorPagination',
+    'PAGE_SIZE': 6,  # Опционально, можно указать здесь, но лучше в классе
+}
+
+
 # 28-09-2025
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    # форматы вывода:
     'formatters': {
-        'verbose': {
+        'verbose': {        # -> console
             'format': '{levelname} {asctime} {module} {message}',
             'style': '{',
         },
+        'http': {
+            'format': '{levelname} {asctime} {module} {message} {method} {path} {status}',
+            'style': '{',
+        },
+        'db': {
+            'format': '{levelname} {asctime} {module} {message} {sql}',
+            'style': '{',
+        },
     },
+    #обработчики:
     'handlers': {
         'console': {
-            'level': 'WARNING',
+            'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
-        'file': {
-            'level': 'WARNING',
+        'http_file': {
+            'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': 'debug.log',
-            'formatter': 'verbose',
+            'filename': LOGS_DIR / 'http_logs.log',
+            'formatter': 'http',
+        },
+        'db_file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': LOGS_DIR / 'db_logs.log',
+            'formatter': 'db',
         },
     },
+    # логгеры, чтобы направлять логи в соответствующие обработчики:
     'loggers': {
-        'django': {
-            'handlers': ['console', 'file'],
-            'level': 'WARNING',
-            'propagate': True,
+        'django.server': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,     # сообщения, обработанные этими логгерами,
+            # не передаются родительским логгерам. Это сделано, чтобы избежать дублирования логов
         },
         'django.request': {
-            'handlers': ['console', 'file'],
-            'level': 'WARNING',
+            'handlers': ['http_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['db_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
             'propagate': False,
         },
         'rest_framework': {
-            'handlers': ['console', 'file'],
-            'level': 'WARNING',
+            #'handlers': ['console'],
+            'handlers': ['console', 'http_file'],  # DRF-логи также в http_logs.log
+            'level': 'INFO',
             'propagate': False,
-        },
-        '': {
-            'handlers': ['console', 'file'],
-            'level': 'WARNING',
-            'propagate': True,
         },
     },
 }
-
+"""
+django.server: Обрабатывает логи сервера (например, вывод WSGI-сервера) и отправляет их в консоль.
+django.request: Обрабатывает логи HTTP-запросов (метод, путь, статус) и записывает их в http_logs.log.
+django.db.backends: Обрабатывает логи SQL-запросов и записывает их в db_logs.log.
+django и rest_framework: Общие логи Django и DRF, выводятся в консоль.
+"""

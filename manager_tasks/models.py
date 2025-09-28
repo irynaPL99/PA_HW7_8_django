@@ -20,6 +20,7 @@ class Category(models.Model):
     #hw16 Soft Deletion:
     is_deleted = models.BooleanField(default=False, verbose_name="Удалена")
     deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата удаления")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Дата создания") #hw17, field for pagination
 
     def delete(self, *args, **kwargs):
         """Мягкое удаление: помечает категорию как удалённую и устанавливает дату."""
