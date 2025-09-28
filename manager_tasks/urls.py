@@ -1,12 +1,22 @@
 # manager_tasks/urls.py
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter   #hw16
 from .views import get_task_statistic
-from .views import get_all_categories, create_category, update_category
+#from .views import get_all_categories, create_category, update_category -> CategoryViewSet (hw16 ModelViewSet)
 #from .views import create_subtask # hw12 -> hw15
 from .views import SubTaskListCreateView, SubTaskDetailUpdateDeleteView # hw13  APIView->hw15 Generic View
 from .views import get_subtasks_by_task_and_status #hw14
 from .views import TaskListCreateView, TaskDetailUpdateDeleteView #hw15  Generic View
+from .views import CategoryViewSet #hw16 ModelViewSet
+
+
+router = DefaultRouter()
+router.register(r'categories', CategoryViewSet, basename='category') #hw16
+# http://127.0.0.1:8000/api/v1/categories/
+
+
 urlpatterns = [
+    path('', include(router.urls)), #hw16, router
     path('tasks/', TaskListCreateView.as_view(), name='all_tasks'), # Generic View(GET, POST)
     path('tasks/<int:pk>/', TaskDetailUpdateDeleteView.as_view(), name='task_detail'),
     path('tasks/statistic/', get_task_statistic, name='task_statistic'),
@@ -20,8 +30,8 @@ urlpatterns = [
 
     #Пример: GET /subtasks/?status=NEW&search=задача&ordering=-created_at
 
-    # categories:
-    path('categories/', get_all_categories, name='all_categories'),
-    path('categories/create/', create_category, name='create_category'),
-    path('categories/<int:pk>/', update_category, name='update_category'),
+    # categories: -> router
+    #path('categories/', get_all_categories, name='all_categories'),
+    #path('categories/create/', create_category, name='create_category'),
+    #path('categories/<int:pk>/', update_category, name='update_category'),
 ]

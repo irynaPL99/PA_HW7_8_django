@@ -59,9 +59,6 @@ class TaskCreateSerializer(ModelSerializer):
         return super().update(instance, validated_data)
 
 
-
-
-
 class SubTaskSerializer(ModelSerializer):
     task_title = serializers.CharField(source='task.title', read_only=True) # название главной(связанной) задачи
 

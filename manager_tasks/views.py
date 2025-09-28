@@ -1,9 +1,11 @@
 from rest_framework.exceptions import ValidationError
+from rest_framework.decorators import api_view  #hw12
 from rest_framework.views import APIView    #hw13
+from rest_framework.viewsets import ModelViewSet  #hw16
+from rest_framework.decorators import action #hw16
+from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework import status
-from rest_framework.decorators import api_view  #hw12
-from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination  #hw14
 
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView # hw15
@@ -116,44 +118,6 @@ def get_task_statistic(request):
     serializer = TaskStatisticSerializer(statistic_data)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-"""hw13 """
-@api_view(['GET'])
-def get_all_categories(request):
-    categories = Category.objects.all()
-    serializer = CategorySerializer(categories, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-@api_view(['POST'])
-def create_category(request):
-    serializer = CategoryCreateSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# @api_view(['PUT']) # клиент отправляет все поля ресурса,
-# и сервер заменяет существующий объект новыми данными.
-# Если какого-то поля нет в запросе, оно обычно сбрасывается
-# до значения по умолчанию или null (если разрешено)
-#@api_view(['PATCH']) # для частичного обновления ресурса. Клиент отправляет только те поля,
-# которые нужно изменить, а остальные остаются без изменений
-
-@api_view(['PUT'])
-def update_category(request, pk):
-    try:
-        category = Category.objects.get(pk=pk)
-    except Category.DoesNotExist:
-        return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    serializer = CategoryCreateSerializer(category, data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 """hw14: 
 получение списка всех подзадач по названию главной задачи и статусу подзадач
 """
@@ -234,3 +198,34 @@ class SubTaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
         if self.request.method in ['PUT', 'PATCH']:
             return SubTaskCreateSerializer
         return self.serializer_class
+
+
+#hw16 ModelViewSet for CRUD for Category
+class CategoryViewSet(ModelViewSet):
+    """
+    ViewSet для управления категориями (CRUD операции).
+    Поддерживает создание, получение, обновление и удаление категорий.
+    """
+    queryset = Category.objects.all() # Использует кастомный менеджер (Soft Deletion)
+    serializer_class = CategoryCreateSerializer
+
+    #hw16 action(count_tasks)
+    @action(detail=True, methods=['get'])   # detail=True - для одного объекта
+    def count_tasks(self, request, pk=None):
+        """
+        Возвращает количество задач, связанных с данной категорией.
+        """
+        try:
+            category = self.get_object()  # Получаем категорию по pk
+            task_count = Task.objects.filter(categories=category).count()
+            return Response({
+                'category_id': category.id,
+                'task_count': task_count,
+                'category_name': category.name  # Добавляем имя для удобства
+            }, status=status.HTTP_200_OK)
+        except Category.DoesNotExist:
+            return Response(
+                {'error': 'Category not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+

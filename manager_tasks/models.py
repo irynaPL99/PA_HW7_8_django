@@ -7,9 +7,28 @@ from django.utils import timezone
 Поля:
 name: Название категории.
 """
+#hw16: кастомный менеджер для модели Category,
+# метод get_queryset(), по умолчанию - только неудалённые записи (где is_deleted=False)
+class CategoryManager(models.Manager):
+    """Кастомный менеджер для фильтрации НЕудалённых категорий."""
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
 class Category(models.Model):
     name = models.CharField(max_length=30, verbose_name="Название категории:",
                             help_text="Категория выполнения (срочность)")
+    #hw16 Soft Deletion:
+    is_deleted = models.BooleanField(default=False, verbose_name="Удалена")
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата удаления")
+
+    def delete(self, *args, **kwargs):
+        """Мягкое удаление: помечает категорию как удалённую и устанавливает дату."""
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.save()
+
+    objects = CategoryManager()  # Используем кастомный менеджер по умолчанию
+
     def __str__(self):
         return self.name
 
