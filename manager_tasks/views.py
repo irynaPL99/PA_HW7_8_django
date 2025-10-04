@@ -1,4 +1,5 @@
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, IsAuthenticatedOrReadOnly, AllowAny #hw18 SimpeJWT
 from rest_framework.decorators import api_view  #hw12
 from rest_framework.views import APIView    #hw13
 from rest_framework.viewsets import ModelViewSet  #hw16
@@ -23,6 +24,13 @@ from .serializers import SubTaskCreateSerializer, SubTaskSerializer
 from .models import Task, SubTask, Category
 
 
+"""hw18 SimpleJWT"""    # тестовый защищённый эндпоинт
+class ProtectedDataView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        return Response({"message": "Hello, authenticated user!", "user": request.user.username})
+
+
 """hw15:
 create_task, get_all_tasks -> на Generic View: класс ListCreateAPIView,
 get_task_detail -> на Generic View: класс TaskDetailUpdateDeleteView
@@ -33,6 +41,7 @@ class TaskListCreateView(ListCreateAPIView):
     Получение списка задач (GET) и создание новой задачи (POST).
     Поддерживает фильтрацию, поиск и сортировку.
     """
+    permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, POST только для авторизованных
     queryset = Task.objects.all()
     serializer_class = TaskListSerializer  # Для списка задач
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]  #hw15 Подключаем фильтры
@@ -75,6 +84,7 @@ class TaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
     """
     Получение (GET), обновление (PUT) и удаление (DELETE) задачи по ID.
     """
+    permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, PUT/DELETE только для авторизованных
     queryset = Task.objects.all()
     serializer_class = TaskDetailSerializer  # Для детального отображения задачи
 
@@ -93,68 +103,74 @@ class TaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
         self.perform_update(serializer)
         return Response(serializer.data)
 
-"""hw12 Статистика по задачам
-3.1 общее количество задач.
-3.2 количество задач по каждому статусу.
-3.3 количество просроченных задач.
-"""
-@api_view(['GET'])
-def get_task_statistic(request):
-    # 3.1 count Tasks
-    total_tasks = Task.objects.count()
 
-    # 3.2 aggregation by status
-    tasks_by_status = Task.objects.values('status').annotate(cnt=Count('id')).order_by('status')
-    status_dict =  {item['status']: item['cnt'] for item in tasks_by_status}
 
-    # 3.3 deadline < now
-    overdue_tasks = Task.objects.filter(deadline__lt=timezone.now()).count()
+"""hw18 Для функций с @api_view (get_task_statistic, get_subtasks_by_task_and_status) пермишены нельзя задать напрямую. 
+Чтобы добавить пермишены, нужно преобразовать их в классы APIView."""
+class TaskStatisticView(APIView):
+    permission_classes = [AllowAny]  #hw18 permissions
+    def get(self, request):     # get_task_statistic
+        """hw12 Статистика по задачам
+        3.1 общее количество задач.
+        3.2 количество задач по каждому статусу.
+        3.3 количество просроченных задач."""
+        # hw12 3.1 count Tasks
+        total_tasks = Task.objects.count()
 
-    statistic_data = {
-        'total_tasks': total_tasks,
-        'tasks_by_status': status_dict,
-        'overdue_tasks': overdue_tasks
-    }
-    serializer = TaskStatisticSerializer(statistic_data)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+        # hw12 3.2 aggregation by status
+        tasks_by_status = Task.objects.values('status').annotate(cnt=Count('id')).order_by('status')
+        status_dict =  {item['status']: item['cnt'] for item in tasks_by_status}
 
-"""hw14: 
-получение списка всех подзадач по названию главной задачи и статусу подзадач
-"""
-@api_view(['GET'])
-def get_subtasks_by_task_and_status(request):
-    """
-    Get all SubTasks filtered by main task title and/or subtask status, with pagination.
-    """
-    # Настройка пагинации (5 объектов на страницу, как в SubTaskListCreateView)
-    pagination_class = PageNumberPagination
-    pagination_class.page_size = 5
+        # hw12 3.3 deadline < now
+        overdue_tasks = Task.objects.filter(deadline__lt=timezone.now()).count()
 
-    # Получаем параметры фильтрации из запроса
-    task_title = request.query_params.get('task_title', None)
-    status = request.query_params.get('status', None)
+        statistic_data = {
+            'total_tasks': total_tasks,
+            'tasks_by_status': status_dict,
+            'overdue_tasks': overdue_tasks
+        }
+        serializer = TaskStatisticSerializer(statistic_data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # Базовый запрос для всех подзадач, отсортированных по убыванию даты создания
-    subtasks = SubTask.objects.all().order_by('-created_at')
 
-    # Применяем фильтры, если переданы параметры
-    if task_title:
-        subtasks = subtasks.filter(task__title__icontains=task_title)
-        # 'task' - поле ForeignKey, связывающее её с моделью Task.
-        # Двойное подчеркивание (__) используется в Django ORM для обращения к связанным моделям
-        # в поле__title модели Task, '__icontains' - содержится(регистроНЕзависим.) название гл.задачи
+"""hw18 Для функций с @api_view (get_task_statistic, get_subtasks_by_task_and_status) пермишены нельзя задать напрямую. 
+Чтобы добавить пермишены, нужно преобразовать их в классы APIView."""
+class SubTaskStatisticView(APIView):
+    permission_classes = [AllowAny]  #hw18 permissions
+    """hw14: получение списка всех подзадач по названию главной задачи и статусу подзадач"""
+    def get(self, request):   #get_subtasks_by_task_and_status
+        """
+        Get all SubTasks filtered by main task title and/or subtask status, with pagination.
+        """
+        # Настройка пагинации (5 объектов на страницу, как в SubTaskListCreateView)
+        pagination_class = PageNumberPagination #
+        pagination_class.page_size = 5
 
-    if status:
-        subtasks = subtasks.filter(status__iexact=status)
-        # _iexact обеспечивает регистроНЕзависимый поиск
+        # Получаем параметры фильтрации из запроса
+        task_title = request.query_params.get('task_title', None)
+        status = request.query_params.get('status', None)
 
-    # Применяем пагинацию
-    paginator = pagination_class()
-    paginated_subtasks = paginator.paginate_queryset(subtasks, request)
+        # Базовый запрос для всех подзадач, отсортированных по убыванию даты создания
+        subtasks = SubTask.objects.all().order_by('-created_at')
 
-    serializer = SubTaskSerializer(paginated_subtasks, many=True)
-    # Возвращаем пагинированный ответ
-    return paginator.get_paginated_response(serializer.data)
+        # Применяем фильтры, если переданы параметры
+        if task_title:
+            subtasks = subtasks.filter(task__title__icontains=task_title)
+            # 'task' - поле ForeignKey, связывающее её с моделью Task.
+            # Двойное подчеркивание (__) используется в Django ORM для обращения к связанным моделям
+            # в поле__title модели Task, '__icontains' - содержится(регистроНЕзависим.) название гл.задачи
+
+        if status:
+            subtasks = subtasks.filter(status__iexact=status)
+            # _iexact обеспечивает регистроНЕзависимый поиск
+
+        # Применяем пагинацию
+        paginator = pagination_class()
+        paginated_subtasks = paginator.paginate_queryset(subtasks, request)
+
+        serializer = SubTaskSerializer(paginated_subtasks, many=True)
+        # Возвращаем пагинированный ответ
+        return paginator.get_paginated_response(serializer.data)
 
 
 """hw15: классы SubTaskListCreateView -> на Generic Views (ListCreateAPIView)
@@ -167,18 +183,19 @@ class SubTaskListCreateView(ListCreateAPIView):
     Получение списка подзадач (GET) и создание новой подзадачи (POST).
     Поддерживает пагинацию, фильтрацию, поиск и сортировку.
     """
+    permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, POST только для авторизованных
     queryset = SubTask.objects.all().order_by('-created_at')
     serializer_class = SubTaskSerializer  # all SubTasks
     #pagination_class = CustomCursorPagination  # Замена на глобальный класс пагинации(hw17)
-    pagination_class = PageNumberPagination
-    pagination_class.page_size = 5  # 5 объектов на страницу (hw14)
+    #pagination_class = PageNumberPagination # 04-10-2025 hw18 (global pagination->PageNumberPagination und permissions)
+    #pagination_class.page_size = 5  # 5 объектов на страницу (hw14)
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter] #hw15
     filterset_fields = ['status', 'deadline']
     search_fields = ['title', 'description']
     ordering_fields = ['created_at']
     ordering = ['-created_at']  # Сортировка по умолчанию
 
-    # переопределение сериалайзера для для POST-запросов
+    # переопределение сериалайзера для POST-запросов
     def get_serializer_class(self):
         """Используем SubTaskCreateSerializer для POST-запросов (create SubTask)."""
         if self.request.method == 'POST':
@@ -190,6 +207,7 @@ class SubTaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
     """
     Получение (GET), обновление (PUT) и удаление (DELETE) подзадачи по ID.
     """
+    permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, POST только для авторизованных
     queryset = SubTask.objects.all()
     serializer_class = SubTaskSerializer
 
@@ -210,11 +228,24 @@ class CategoryViewSet(ModelViewSet):
     queryset = Category.objects.all() # Использует кастомный менеджер (Soft Deletion)
     serializer_class = CategoryCreateSerializer
 
+    #hw18 permissions
+    def get_permissions(self):
+        """
+        Разные пермишены для GET и других методов:
+        - GET: AllowAny (все могут видеть категории)
+        - POST/PUT/DELETE: IsAdminUser (только админы могут изменять)
+        """
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAdminUser()]
+
+
     #hw16 action(count_tasks)
     @action(detail=True, methods=['get'])   # detail=True - для одного объекта
     def count_tasks(self, request, pk=None):
         """
         Возвращает количество задач, связанных с данной категорией.
+        Доступно всем (AllowAny).
         """
         try:
             category = self.get_object()  # Получаем категорию по pk

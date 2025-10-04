@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os   #hw17 LOGS_DIR
 from pathlib import Path
 from environ import Env
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -47,6 +48,7 @@ INSTALLED_APPS = [
     'manager_tasks.apps.ManagerTasksConfig',
     'rest_framework',
     'django_filters',
+
 ]
 
 MIDDLEWARE = [
@@ -145,11 +147,23 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-#28-09-2025 hw17 pagination
+#28-09-2025 hw17 pagination, 04-10-2025 hw18 (global pagination->PageNumberPagination und permissions)
 REST_FRAMEWORK = {
     # Указывает кастомный класс пагинации для всех ViewSet и APIView, где пагинация не переопределена
-    'DEFAULT_PAGINATION_CLASS': 'manager_tasks.pagination.CustomCursorPagination',
-    'PAGE_SIZE': 6,  # Опционально, можно указать здесь, но лучше в классе
+    #'DEFAULT_PAGINATION_CLASS': 'manager_tasks.pagination.CustomCursorPagination', #hw17
+    #'PAGE_SIZE': 6,  # hw17 Опционально, можно указать здесь, но лучше в классе
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',    #hw18
+    'PAGE_SIZE': 5,  #hw18
+
+#04-10-2025 hw18 SimpleJWT
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+    'rest_framework_simplejwt.authentication.JWTAuthentication',
+],
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
 
