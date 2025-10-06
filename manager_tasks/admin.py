@@ -20,11 +20,11 @@ class CategoryAdmin(admin.ModelAdmin):
 
 class TaskAdmin(admin.ModelAdmin):
     #list_display = ('title', 'status', 'deadline')
-    list_display = ('short_title', 'status', 'deadline') # HW11 'short_title'
+    list_display = ('short_title', 'status', 'deadline', 'owner') # HW11 'short_title'
     # Задание полей, по которым будет производиться поиск
     search_fields = ('title', 'status')
     # Добавление боковых фильтров для быстрого поиска по указанным полям
-    list_filter = ('title', 'status', 'deadline')
+    list_filter = ('title', 'status', 'deadline', 'owner')
     # Определение порядка сортировки объектов в админке
     #ordering = ('status',)
     # Определение порядка и набора полей, которые будут отображаться
@@ -42,8 +42,8 @@ class TaskAdmin(admin.ModelAdmin):
     short_title.short_description = 'title(<10)'
 
 class SubTaskAdmin(admin.ModelAdmin):
-    list_display = ('title', 'task', 'status', 'deadline')
-    list_filter = ('title', 'task', 'status', 'deadline')
+    list_display = ('title', 'task', 'status', 'deadline', 'owner')
+    list_filter = ('title', 'task', 'status', 'deadline', 'owner')
     list_per_page = 10
 
     #HW11, action: "для Подзадач -> статус Done"

@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'manager_tasks.apps.ManagerTasksConfig',
     'rest_framework',
     'django_filters',
-
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -243,3 +243,18 @@ django.request: Обрабатывает логи HTTP-запросов (мет�
 django.db.backends: Обрабатывает логи SQL-запросов и записывает их в db_logs.log.
 django и rest_framework: Общие логи Django и DRF, выводятся в консоль.
 """
+
+# hw19 Swagger настройки для JWT-авторизации
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',  # Заголовок, в котором передаётся токен
+            'in': 'header'  # Токен в заголовке запроса
+        }
+    },
+    'USE_SESSION_AUTH': False,  # Отключаем сессионную аутентификацию (используем только JWT)
+    'PERSIST_AUTH': True,  # Сохраняем авторизацию в localStorage для удобства
+    'REFETCH_SCHEMA_WITH_AUTH': True,  # Перезагружаем схему после авторизации
+    'REFETCH_SCHEMA_ON_LOGOUT': True,  # Перезагружаем схему после логаута
+}

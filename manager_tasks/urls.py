@@ -3,7 +3,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter   #hw16
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView #hw18 SimpleJWT
 #from .views import get_task_statistic   #hw12->hw18
-from .views import TaskStatisticView    #hw18 permissions
+from .views import TaskStatisticView, MyTasksView  # hw18 permissions (TaskStatisticView), hw19 (owner, MyTasksView)
 #from .views import get_all_categories, create_category, update_category -> CategoryViewSet (hw16 ModelViewSet)
 #from .views import create_subtask # hw12 -> hw15
 from .views import SubTaskListCreateView, SubTaskDetailUpdateDeleteView # hw13  APIView->hw15 Generic View
@@ -36,6 +36,7 @@ urlpatterns = [
 
     #Пример: GET /subtasks/?status=NEW&search=задача&ordering=-created_at
     # http://127.0.0.1:8000/api/v1/subtasks/filter/?task_title=ДЗ&status=NEW
+    path('my-tasks/', MyTasksView.as_view(), name='my_tasks'),  # hw19, owner
 
     # categories: -> router
     #path('categories/', get_all_categories, name='all_categories'),

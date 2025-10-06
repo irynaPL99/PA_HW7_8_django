@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.contrib.auth.models import User  # hw19
 
 """Модель Category:
 Описание: Категория выполнения.
@@ -64,6 +65,7 @@ class Task(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NEW')
     deadline = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='tasks')  # hw19
 
     def __str__(self):
         return self.title
@@ -117,6 +119,8 @@ class SubTask(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NEW')
     deadline = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True,
+                              related_name='subtasks')  # hw19
 
     def __str__(self):
         return self.title

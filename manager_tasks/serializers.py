@@ -21,11 +21,13 @@ class CategorySerializer(ModelSerializer):
 Если дата в прошлом, возвращайте ошибку валидации 
 """
 class TaskCreateSerializer(ModelSerializer):
+    owner = serializers.CharField(source='owner.username', read_only=True)  # hw19 Отображаем имя пользователя
+
     class Meta:
         model = Task
         #fields = '__all__'
-        fields = ['title', 'description', 'status', 'deadline']
-        read_only_fields = ['created_at']   #hw15 (add update Task als Generic View)
+        fields = ['title', 'description', 'status', 'deadline', 'owner']
+        read_only_fields = ['created_at', 'owner']   #hw15 (add update Task als Generic View), hw19('owner')
 
     def validate(self, data):
         logger.debug(f"Validating data: {data}")
@@ -56,16 +58,18 @@ class TaskCreateSerializer(ModelSerializer):
         logger.debug(f"Updating instance with validated data: {validated_data}")
         # Исключаем "created_at" из обновления, так как оно read_only
         validated_data.pop('created_at', None)
+        validated_data.pop('owner', None)  # hw19 Исключаем owner из обновления (read_only)
         return super().update(instance, validated_data)
 
 
 class SubTaskSerializer(ModelSerializer):
     task_title = serializers.CharField(source='task.title', read_only=True) # название главной(связанной) задачи
+    owner = serializers.CharField(source='owner.username', read_only=True)  # hw19 Отображаем имя пользователя
 
     class Meta:
         model = SubTask
         #fields = '__all__'
-        fields = ['id', 'task_title', 'title', 'status', 'created_at']  # Включаем id и task.title
+        fields = ['id', 'task_title', 'title', 'status', 'created_at', 'owner']  # Включаем id и task.title, hw19('owner')
 
 """hw12 Создайте !!два!! новых эндпоинта для:
 + Получения списка задач
@@ -73,10 +77,12 @@ class SubTaskSerializer(ModelSerializer):
 """
 class TaskListSerializer(ModelSerializer):
     categories = CategorySerializer(many=True)
+    owner = serializers.CharField(source='owner.username', read_only=True)  # hw19 Отображаем имя пользователя
+
     class Meta:
         model = Task
         #fields = '__all__'
-        fields = ['id', 'title', 'categories', 'status', 'deadline']
+        fields = ['id', 'title', 'categories', 'status', 'deadline', 'owner'] #hw19
 
 """hw 13. Сериализатор  TaskDetailSerializer должен показывать все подзадачи, 
 связанные с данной задачей
@@ -86,6 +92,7 @@ class TaskDetailSerializer(ModelSerializer):
     #categories = StringRelatedField(many=True)
     # StringRelatedField использует метод __str__ связанной модели
     subtasks = SubTaskSerializer(many=True, read_only=True)
+    owner = serializers.CharField(source='owner.username', read_only=True)  #  hw19 Отображаем имя пользователя
 
     class Meta:
         model = Task
@@ -106,13 +113,17 @@ class TaskStatisticSerializer(serializers.Serializer):
 в котором поле created_at будет доступно только для чтения (read_only). 
 """
 class SubTaskCreateSerializer(ModelSerializer):
+    owner = serializers.CharField(source='owner.username', read_only=True)  # hw19 Отображаем имя пользователя
+
     class Meta:
         model = SubTask
         #fields = ['title', 'description','task', 'status', 'deadline']
         fields = '__all__'
-        read_only_fields = ['created_at']  # Переопределяем created_at как read_only
+        # hw19 ('owner', read_only):
+        read_only_fields = ['created_at', 'owner']  # Переопределяем created_at как read_only
         # не будет приниматься из данных запроса (например, из JSON в POST  или PUT -запросе)
         # будет автоматически установлено при сохранении объекта благодаря auto_now_add=True
+
 
 class CategoryCreateSerializer(ModelSerializer):
     class Meta:

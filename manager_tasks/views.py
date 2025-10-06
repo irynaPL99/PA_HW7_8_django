@@ -8,8 +8,11 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination  #hw14
+from .permissions import IsOwnerOrReadOnly #hw19 custommers permissions
+from drf_yasg.utils import swagger_auto_schema  #hw19 swager
+from drf_yasg import openapi    #hw19 swagger
 
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView # hw15
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView  # hw15
 from django_filters.rest_framework import DjangoFilterBackend   #hw15
 from rest_framework.filters import SearchFilter, OrderingFilter #hw15
 
@@ -41,7 +44,8 @@ class TaskListCreateView(ListCreateAPIView):
     Получение списка задач (GET) и создание новой задачи (POST).
     Поддерживает фильтрацию, поиск и сортировку.
     """
-    permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, POST только для авторизованных
+    #permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, POST только для авторизованных
+    permission_classes = [IsOwnerOrReadOnly]  # hw19 Заменяем на польз.пермишен: только для owner, остальным - только чтение
     queryset = Task.objects.all()
     serializer_class = TaskListSerializer  # Для списка задач
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]  #hw15 Подключаем фильтры
@@ -79,12 +83,18 @@ class TaskListCreateView(ListCreateAPIView):
             queryset = queryset.filter(deadline__week_day=weekday_num + 1)
         return queryset
 
+    # hw19, owner
+    def perform_create(self, serializer):
+        """Автоматически устанавливаем текущего пользователя как владельца задачи."""
+        serializer.save(owner=self.request.user)
+
 #hw15:  Новый класс (Generic APIView) для получения, обновления и удаления задачи по ID
 class TaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
     """
     Получение (GET), обновление (PUT) и удаление (DELETE) задачи по ID.
     """
-    permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, PUT/DELETE только для авторизованных
+    #permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, PUT/DELETE только для авторизованных
+    permission_classes = [IsOwnerOrReadOnly]  # hw19 Заменяем на польз.пермишен: только для owner, остальным - только чтение
     queryset = Task.objects.all()
     serializer_class = TaskDetailSerializer  # Для детального отображения задачи
 
@@ -102,8 +112,6 @@ class TaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
-
-
 
 """hw18 Для функций с @api_view (get_task_statistic, get_subtasks_by_task_and_status) пермишены нельзя задать напрямую. 
 Чтобы добавить пермишены, нужно преобразовать их в классы APIView."""
@@ -183,7 +191,8 @@ class SubTaskListCreateView(ListCreateAPIView):
     Получение списка подзадач (GET) и создание новой подзадачи (POST).
     Поддерживает пагинацию, фильтрацию, поиск и сортировку.
     """
-    permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, POST только для авторизованных
+    #permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, POST только для авторизованных
+    permission_classes = [IsOwnerOrReadOnly]  # hw19 Заменяем на польз.пермишен: только для owner, остальным - только чтение
     queryset = SubTask.objects.all().order_by('-created_at')
     serializer_class = SubTaskSerializer  # all SubTasks
     #pagination_class = CustomCursorPagination  # Замена на глобальный класс пагинации(hw17)
@@ -202,12 +211,18 @@ class SubTaskListCreateView(ListCreateAPIView):
             return SubTaskCreateSerializer
         return self.serializer_class
 
+    # hw19, owner
+    def perform_create(self, serializer):
+        """Автоматически устанавливаем текущего пользователя как владельца подзадачи."""
+        serializer.save(owner=self.request.user)
+
 #hw15 Generic View: Класс для получения, обновления и удаления подзадачи по ID
 class SubTaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
     """
     Получение (GET), обновление (PUT) и удаление (DELETE) подзадачи по ID.
     """
-    permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, POST только для авторизованных
+    #permission_classes = [IsAuthenticatedOrReadOnly]  #hw18: GET для всех, POST только для авторизованных
+    permission_classes = [IsOwnerOrReadOnly]  # hw19 Заменяем на польз.пермишен: только для owner, остальным - только чтение
     queryset = SubTask.objects.all()
     serializer_class = SubTaskSerializer
 
@@ -261,3 +276,26 @@ class CategoryViewSet(ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+# hw19, для получения задач текущего пользователя
+class MyTasksView(ListAPIView): # наследуется от ListAPIView, т.к. нужно только получение списка (GET)
+     """
+     Получение списка задач, принадлежащих текущему авторизованному пользователю.
+     """
+     permission_classes = [IsAuthenticated]
+     serializer_class = TaskListSerializer
+
+     @swagger_auto_schema(
+         operation_description="Получение списка задач текущего пользователя.",
+         responses={200: TaskListSerializer(many=True), 401: "Unauthorized"},
+         security=[{'Bearer': []}]  # Указываем, что требуется JWT-авторизация
+     )
+     def get(self, request, *args, **kwargs):
+         return super().get(request, *args, **kwargs)
+     # передаёт управление родительскому классу (ListAPIView),
+     # сохраняя исходную функциональность DRF.
+     # Это важно, чтобы не переписывать логику обработки GET-запросов с нуля,
+     # а только дополнить её документацией
+
+     def get_queryset(self):
+         """Возвращаем только задачи текущего пользователя."""
+         return Task.objects.filter(owner=self.request.user).order_by('-created_at')
